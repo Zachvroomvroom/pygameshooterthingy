@@ -107,21 +107,9 @@ class Power(pg.sprite.Sprite):
         #stats
         # speed
         self.speedy = -5
-        # check
-        self.hit = False
-        self.delay = 300
-        self.last_delay = 0
 
     def update(self):
         self.rect.y += self.speedy
-        if now - self.last_delay > self.delay:
-            self.last_delay = now
-            self.type = rn.randint(0, 1)
-            if self.type == 0:
-                self.image = pg.image.load("icons/Icon.1_18.png")
-            elif self.type == 1:
-                self.image = pg.image.load("icons/Icon.5_96.png")
-            self.image = pg.transform.scale(self.image, (self.width, self.height))
 
 
 class Player(pg.sprite.Sprite):
@@ -202,9 +190,12 @@ class Player(pg.sprite.Sprite):
             self.speedx = 10
         if keystate[pg.K_a]:
             self.speedx = -10
+        self.rect.x += self.speedx
+
         if keystate[pg.K_SPACE]:
             self.shoot()
-        self.rect.x += self.speedx
+        if keystate[pg.K_LSHIFT]:
+            upshop.shop_screen()
 
 
 class Mob(pg.sprite.Sprite):
@@ -221,6 +212,17 @@ class Mob(pg.sprite.Sprite):
             self.pick = rn.choice(self.meteor_list)
             self.image = self.pick
             self.health = 2
+            self.score = 300
+        if self.type == 'big':
+            self.width = rn.randint(35,45)
+            self.height = rn.randint(35,45)
+            self.meteor_list = []
+            self.load_images()
+            self.pick = rn.choice(self.meteor_list)
+            self.image = self.pick
+            self.health = 10
+            self.score = 800
+
         self.image = pg.transform.scale(self.image, (self.width, self.height))
         self.rect = self.image.get_rect()
         self.rect.centerx = rn.randint(20,WIDTH-20)
@@ -232,7 +234,7 @@ class Mob(pg.sprite.Sprite):
         self.speedy = rn.randint(-3,-2)
 
     def load_images(self):
-        for i in range(1, 11):
+        for i in range(1, 9):
             filename = 'meteor_img/meteor{}.png'.format(i)
             img = pg.image.load(filename)
             self.meteor_list.append(img)
@@ -246,7 +248,8 @@ class Mob(pg.sprite.Sprite):
         if self.k:
             expl = Explosion(self.rect.center, "sm")
             all_sprite.add(expl)
-            ship.score += 500
+            ship.score += self.score
+            newmob()
             self.kill()
 
 
@@ -334,61 +337,70 @@ class Shop():
         self.money = 0
         self.selectable = []
         self.selected = 0
-        self.upgrade = '0'
 
     def update(self):
         keystate = pg.key.get_pressed()
-        if self.upgrade == '0':
+        if ship.upgrade == '0':
             self.selectable = ['1']
-        elif self.upgrade == '1':
+        elif ship.upgrade == '1':
             self.selectable = ['2-1','2-2']
-        elif self.upgrade == '2-1':
+        elif ship.upgrade == '2-1':
             self.selectable = ['3-1']
-        elif self.upgrade == '2-2':
+        elif ship.upgrade == '2-2':
             self.selectable = ['3-2']
+
         if keystate[pg.K_1]:
             self.selected = 1
         if keystate[pg.K_2] and len(self.selectable) > 1:
             self.selected = 2
         if keystate[pg.K_TAB] and self.selected == 1:
             if self.selectable == '1':
-                ship.upgrade == '1'
+                ship.upgrade = '1'
             if self.selectable == '2-1':
-                ship.upgrade == '2-1'
+                ship.upgrade = '2-1'
             if self.selectable == '3-1':
-                ship.upgrade == '3-1'
-        if keystate[pg.K_TAB] and self.selected == 1:
+                ship.upgrade = '3-1'
+        if keystate[pg.K_TAB] and self.selected == 2:
             if self.selectable == '2-2':
-                ship.upgrade == '2-1'
+                ship.upgrade = '2-1'
             if self.selectable == '3-2':
-                ship.upgrade == '3-1'
+                ship.upgrade = '3-1'
+
 
     def shop_screen(self):
         screen.fill(BLACK)
-
-        pygame.display.flip()
-        waiting = True
-        while waiting:
+        holding = True
+        while holding:
             # keep loop running at the right speed
             clock.tick(FPS)
             # Process input (events)
             for event2 in pygame.event.get():
                 # check for closing window
                 if event2.type == pygame.QUIT:
-                    waiting = False
+                    holding = False
+                if event2[pg.K_LCTRL]:
+                    holding = False
 
             self.update()
-
+            drawtext(screen, "Money: " + str(upshop.money), 24, 60 , 40, VIOLET)
+            drawtext(screen, "Selected: " + str(upshop.selected), 24, 60 , 64, VIOLET)
+            drawtext(screen, "Options: " + str(upshop.selectable[1]), 24, WIDTH-80, 40, VIOLET)
+            pygame.display.flip()
 
 class Money(pg.sprite.Sprite):
     def __init__(self):
         pg.sprite.Sprite.__init__(self)
-        self.width = 8
-        self.height = 16
+        self.width = 32
+        self.height = 32
         self.image = pg.image.load("money1.png")
         self.image = pg.transform.scale(self.image, (self.width, self.height))
         self.rect = self.image.get_rect()
+        self.rect.centerx = rn.randint(20,WIDTH-20)
+        self.rect.bottom = HEIGHT + 20
+        self.speedy = -5
 
+    def update(self):
+        self.rect.y += self.speedy
 
 # initialize pygame and create window
 pygame.init()
@@ -457,9 +469,10 @@ while running:
     screen.blit(background_img,background_rect)
     all_sprite.draw(screen)
     ui.draw(screen)
-    drawtext(screen,str(ship.score),16,WIDTH-20,0,VIOLET)
-    drawtext(screen,str(ship.health),16,20,0,VIOLET)
-    drawtext(screen,str(ship.upgrade),32,20,20,VIOLET)
+    drawtext(screen,str(ship.score),16,WIDTH-20,HEIGHT-50,VIOLET)
+    drawtext(screen,str(ship.health),16,20,HEIGHT-50,VIOLET)
+    drawtext(screen,str(ship.upgrade),16,20,HEIGHT-80,VIOLET)
+    drawtext(screen,str(upshop.money),16,WIDTH-20,HEIGHT-80,VIOLET)
     # *after* drawing everything, flip the display
     pygame.display.flip()
 
