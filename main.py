@@ -19,13 +19,13 @@ ORANGE = (255, 165, 0)
 
 font_name = pg.font.match_font('arial')
 
-#object number
-enemy_num = 0
-bullet_num = 0
+enemies_killed = 0
+level = 1
+level_requirement = 20+round((level*2)**1.05)
 
 #definitions
-def newmob():
-    enemy = Mob()
+def newmob(typpity):
+    enemy = Mob(typpity)
     all_sprite.add(enemy)
     enemies.add(enemy)
 
@@ -46,6 +46,32 @@ def newmoney():
     all_sprite.add(mon)
     moneys.add(mon)
 
+def next_level():
+    global level,enemies_killed,level_requirement
+    enemies_killed = 0
+    level += 1
+    level_requirement = 20+round((level*2)**1.05)
+
+    newmob('heavy')
+    if level//3 >= 1:
+        for i in range(level//3):
+            newmob('basic')
+    else:
+        newmob('basic')
+
+    return level, enemies_killed, level_requirement
+
+def draw_shield_bar(surf, x, y, pct,color):
+    if pct < 0:
+        pct = 0
+    BAR_LENGTH = 100
+    BAR_HEIGHT = 10
+    fill = (pct / 5) * BAR_LENGTH
+    outline_rect = pygame.Rect(x, y, BAR_LENGTH, BAR_HEIGHT)
+    fill_rect = pygame.Rect(x, y, fill, BAR_HEIGHT)
+    pygame.draw.rect(surf, color, fill_rect)
+    pygame.draw.rect(surf, BLACK, outline_rect, 2)
+
 
 class Explosion(pygame.sprite.Sprite):
     def __init__(self,center,size):
@@ -57,6 +83,7 @@ class Explosion(pygame.sprite.Sprite):
         self.expl_anim = {}
         self.expl_anim['sm'] = []
         self.expl_anim['lg'] = []
+        self.expl_anim['md'] = []
         self.load_image()
         self.image = self.expl_anim[self.size][0]
         self.rect = self.image.get_rect()
@@ -82,34 +109,12 @@ class Explosion(pygame.sprite.Sprite):
         for i in range(1,10):
             filename = 'explosion_img/explosion{}.png'.format(i)
             img = pygame.image.load(filename)
-            img_lg = pygame.transform.scale(img,(50,50))
+            img_lg = pygame.transform.scale(img,(500,500))
             self.expl_anim['lg'].append(img_lg)
             img_sm = pygame.transform.scale(img,(30,30))
             self.expl_anim['sm'].append(img_sm)
-
-
-class Power(pg.sprite.Sprite):
-    def __init__(self):
-        pg.sprite.Sprite.__init__(self)
-        # LOOK LIKE WHAT?
-        self.width = 32
-        self.height = 32
-        self.type = rn.randint(0,1)
-        "type"
-        if self.type == 0:
-            self.image = pg.image.load("icons/Icon.1_18.png")
-        elif self.type == 1:
-            self.image = pg.image.load("icons/Icon.5_96.png")
-        self.image = pg.transform.scale(self.image, (self.width, self.height))
-        self.rect = self.image.get_rect()
-        self.rect.centerx = rn.randint(20,WIDTH-20)
-        self.rect.bottom = HEIGHT + 20
-        #stats
-        # speed
-        self.speedy = -5
-
-    def update(self):
-        self.rect.y += self.speedy
+            img_md = pygame.transform.scale(img, (80, 80))
+            self.expl_anim['md'].append(img_md)
 
 
 class Player(pg.sprite.Sprite):
@@ -129,6 +134,7 @@ class Player(pg.sprite.Sprite):
         #stats
         #health
         self.health = 3
+        self.max_health = 5
         #speed
         self.speedx = 4
         self.speedy = 2
@@ -153,7 +159,7 @@ class Player(pg.sprite.Sprite):
                 newbullet('1')
 
         if self.upgrade == '2-1':
-            self.shoot_delay = 150
+            self.shoot_delay = 175
             if now - self.last_shot > self.shoot_delay and self.bullet_version == 1:
                 self.last_shot = now
                 newbullet('2-1v1')
@@ -162,6 +168,7 @@ class Player(pg.sprite.Sprite):
                 self.last_shot = now
                 newbullet('2-1v2')
                 self.bullet_version = 1
+
         if self.upgrade == '3-1':
             self.shoot_delay = 140
             if now - self.last_shot > self.shoot_delay:
@@ -174,6 +181,7 @@ class Player(pg.sprite.Sprite):
                 self.last_shot = now
                 newbullet('2-2v1')
                 newbullet('2-2v2')
+
         if self.upgrade == '3-2':
             self.shoot_delay = 340
             if now - self.last_shot > self.shoot_delay:
@@ -185,6 +193,8 @@ class Player(pg.sprite.Sprite):
 
     def update(self):
         self.speedx = 0
+        if self.health > self.max_health:
+            self.health = self.max_health
         keystate = pg.key.get_pressed()
         if keystate[pg.K_d]:
             self.speedx = 10
@@ -195,33 +205,36 @@ class Player(pg.sprite.Sprite):
         if keystate[pg.K_SPACE]:
             self.shoot()
         if keystate[pg.K_LSHIFT]:
-            upshop.shop_screen()
+            ui_screens.shop()
 
 
 class Mob(pg.sprite.Sprite):
-    def __init__(self):
+    def __init__(self,typey):
         pg.sprite.Sprite.__init__(self)
         "make more enemy types"
-        self.type = '1'
+        self.type = typey
         #LOOK LIKE WHAT?
-        if self.type == '1':
+        if self.type == 'basic':
             self.width = 40
             self.height = 40
             self.meteor_list = []
             self.load_images()
-            self.pick = rn.choice(self.meteor_list)
+            self.pick = rn.choice(self.meteor_list[5:])
             self.image = self.pick
             self.health = 2
             self.score = 300
-        if self.type == 'big':
-            self.width = rn.randint(35,45)
-            self.height = rn.randint(35,45)
+            self.speedy = rn.randint(-3, -2)
+
+        if self.type == 'heavy':
+            self.width = rn.randint(65,70)
+            self.height = rn.randint(65,70)
             self.meteor_list = []
             self.load_images()
-            self.pick = rn.choice(self.meteor_list)
+            self.pick = rn.choice(self.meteor_list[:5])
             self.image = self.pick
-            self.health = 10
+            self.health = 16
             self.score = 800
+            self.speedy = -1
 
         self.image = pg.transform.scale(self.image, (self.width, self.height))
         self.rect = self.image.get_rect()
@@ -231,7 +244,7 @@ class Mob(pg.sprite.Sprite):
         #health
         self.k = False
         #speed
-        self.speedy = rn.randint(-3,-2)
+
 
     def load_images(self):
         for i in range(1, 9):
@@ -240,16 +253,25 @@ class Mob(pg.sprite.Sprite):
             self.meteor_list.append(img)
 
     def update(self):
+        global enemies_killed
         if self.rect.bottom <= 0:
             self.rect.bottom = HEIGHT - rn.randint(-200, -5)
         self.rect.y += self.speedy
         if self.health <= 0:
             self.k = True
-        if self.k:
+        if self.k and self.type == 'basic':
             expl = Explosion(self.rect.center, "sm")
             all_sprite.add(expl)
             ship.score += self.score
-            newmob()
+            enemies_killed += 1
+            newmob('basic')
+            self.kill()
+
+        if self.k and self.type == 'heavy':
+            expl = Explosion(self.rect.center, "md")
+            all_sprite.add(expl)
+            ship.score += self.score
+            enemies_killed += 1
             self.kill()
 
 
@@ -278,7 +300,24 @@ class Bullet(pg.sprite.Sprite):
         if self.type == '1':
             self.speedy = 7
             self.speedx = 0
+            self.width = 12
+            self.height = 20
             self.rect.centerx = x
+            self.rect.bottom = y
+
+        if self.type == '2-1v1':
+            self.speedy = 8
+            self.speedx = 0
+            self.width = 12
+            self.height = 20
+            self.rect.centerx = x-18
+            self.rect.bottom = y
+        if self.type == '2-1v2':
+            self.speedy = 8
+            self.speedx = 0
+            self.width = 12
+            self.height = 20
+            self.rect.centerx = x+18
             self.rect.bottom = y
 
         if self.type == '3-1':
@@ -287,26 +326,15 @@ class Bullet(pg.sprite.Sprite):
             self.rect.centerx = x
             self.rect.bottom = y
 
-        if self.type == '2-1v1':
-            self.speedy = 8
-            self.speedx = 0
-            self.rect.centerx = x-18
-            self.rect.bottom = y
-        if self.type == '2-1v2':
-            self.speedy = 8
+        if self.type == '2-2v1':
+            self.speedy = 10
             self.speedx = 0
             self.rect.centerx = x+18
             self.rect.bottom = y
-
-        if self.type == '2-2v1':
-            self.speedy = 10
-            self.speedx = -1
-            self.rect.centerx = x
-            self.rect.bottom = y
         if self.type == '2-2v2':
             self.speedy = 10
-            self.speedx = 1
-            self.rect.centerx = x
+            self.speedx = 0
+            self.rect.centerx = x-18
             self.rect.bottom = y
 
         if self.type == '3-2v1':
@@ -325,6 +353,8 @@ class Bullet(pg.sprite.Sprite):
             self.rect.centerx = x
             self.rect.bottom = y
 
+        self.image = pg.transform.scale(self.image, (self.width, self.height))
+
     def update(self):
         self.rect.y += self.speedy
         self.rect.x += self.speedx
@@ -332,42 +362,69 @@ class Bullet(pg.sprite.Sprite):
             self.kill()
 
 
-class Shop():
+class Screens():
     def __init__(self):
-        self.money = 0
+        self.money = 15
         self.selectable = []
         self.selected = 0
+        self.go = True
 
-    def update(self):
+    def update_shop(self):
         keystate = pg.key.get_pressed()
         if ship.upgrade == '0':
-            self.selectable = ['1']
+            self.selectable = ['1','X']
         elif ship.upgrade == '1':
             self.selectable = ['2-1','2-2']
         elif ship.upgrade == '2-1':
-            self.selectable = ['3-1']
+            self.selectable = ['3-1','X']
         elif ship.upgrade == '2-2':
-            self.selectable = ['3-2']
+            self.selectable = ['X','3-2']
+        elif ship.upgrade == '3-1':
+            self.selectable = ['X','X']
+        elif ship.upgrade == '3-2':
+            self.selectable = ['X','X']
 
         if keystate[pg.K_1]:
             self.selected = 1
-        if keystate[pg.K_2] and len(self.selectable) > 1:
+        if keystate[pg.K_2] and self.selectable[1] != 'X':
             self.selected = 2
-        if keystate[pg.K_TAB] and self.selected == 1:
-            if self.selectable == '1':
+        if keystate[pg.K_3]:
+            self.selected = 3
+
+        if keystate[pg.K_TAB] and self.selected == 1 and self.go and self.selectable[0] != 'X':
+            if self.selectable[0] == '1' and self.money >= 5:
                 ship.upgrade = '1'
-            if self.selectable == '2-1':
+                self.money -= 5
+                self.go = False
+            if self.selectable[0] == '2-1' and self.money >= 10:
                 ship.upgrade = '2-1'
-            if self.selectable == '3-1':
+                self.money -= 10
+                self.go = False
+            if self.selectable[0] == '3-1' and self.money >= 20:
                 ship.upgrade = '3-1'
-        if keystate[pg.K_TAB] and self.selected == 2:
-            if self.selectable == '2-2':
-                ship.upgrade = '2-1'
-            if self.selectable == '3-2':
-                ship.upgrade = '3-1'
+                self.money -= 20
+                self.go = False
 
+        if keystate[pg.K_TAB] and self.selected == 2 and self.go and self.selectable[1] != 'X':
+            if self.selectable[1] == '2-2' and self.money >= 10:
+                ship.upgrade = '2-2'
+                self.money -= 10
+                self.go = False
+            if self.selectable[1] == '3-2' and self.money >= 20:
+                ship.upgrade = '3-2'
+                self.money -= 20
+                self.go = False
 
-    def shop_screen(self):
+        if keystate[pg.K_TAB] and self.selected == 3 and self.go and ship.health < ship.max_health:
+            if self.money >= 5:
+                ship.health += 1
+                self.money -= 5
+                self.go = False
+
+        if not keystate[pg.K_TAB]:
+            self.go = True
+
+    def shop(self):
         screen.fill(BLACK)
         holding = True
         while holding:
@@ -376,16 +433,44 @@ class Shop():
             # Process input (events)
             for event2 in pygame.event.get():
                 # check for closing window
+
                 if event2.type == pygame.QUIT:
                     holding = False
-                if event2[pg.K_LCTRL]:
-                    holding = False
-
-            self.update()
-            drawtext(screen, "Money: " + str(upshop.money), 24, 60 , 40, VIOLET)
-            drawtext(screen, "Selected: " + str(upshop.selected), 24, 60 , 64, VIOLET)
-            drawtext(screen, "Options: " + str(upshop.selectable[1]), 24, WIDTH-80, 40, VIOLET)
+            keystate = pg.key.get_pressed()
+            if keystate[pg.K_LCTRL]:
+                holding = False
+            screen.fill(BLACK)
+            self.update_shop()
+            drawtext(screen, "Money: " + str(self.money), 24, 60 , 40, VIOLET)
+            drawtext(screen, "Selected: " + str(self.selected), 24, 60 , 64, VIOLET)
+            drawtext(screen, "Options: " + str(self.selectable[0]) + ", " + str(self.selectable[1]), 24, WIDTH-160, 40, VIOLET)
+            drawtext(screen, "A: left, D: right, space: shoot", 24, WIDTH//2, 100, VIOLET)
+            drawtext(screen, "Shift: open shop, Ctrl: close shop, ", 24, WIDTH//2, 130, VIOLET)
+            drawtext(screen, "1: upgrade 1, 2: upgrade 2, 3: regain 1 health", 24, WIDTH//2, 160, VIOLET)
             pygame.display.flip()
+
+    def menu(self):
+        screen.fill(BLACK)
+        holding = True
+        while holding:
+            # keep loop running at the right speed
+            clock.tick(FPS)
+            # Process input (events)
+            for event2 in pygame.event.get():
+                # check for closing window
+
+                if event2.type == pygame.QUIT:
+                    holding = False
+            keystate = pg.key.get_pressed()
+            if keystate[pg.K_LCTRL]:
+                holding = False
+            screen.fill(BLACK)
+            drawtext(screen, "Pygameshooterthingy", 32, WIDTH // 2, 24, VIOLET)
+            drawtext(screen, "A: left, D: right   Space: shoot", 24, WIDTH // 2, 100, VIOLET)
+            drawtext(screen, "Shift: open shop    Ctrl: close menus ", 24, WIDTH // 2, 130, VIOLET)
+            drawtext(screen, "1: upgrade 1, 2: upgrade 2, 3: regain 1 health", 24, WIDTH // 2, 160, VIOLET)
+            pygame.display.flip()
+
 
 class Money(pg.sprite.Sprite):
     def __init__(self):
@@ -420,14 +505,16 @@ ship = Player()
 all_sprite.add(ship)
 friendlies.add(ship)
 
-upshop = Shop()
+ui_screens = Screens()
 
 for i in range(8):
-    newmob()
+    newmob('basic')
 
 background_img = pg.image.load("starfield.png")
 background_img = pg.transform.scale(background_img,(WIDTH,HEIGHT))
 background_rect = background_img.get_rect()
+
+ui_screens.menu()
 
 # Game loop
 running = True
@@ -451,16 +538,21 @@ while running:
         for mob in hit_mob:
             mob.health -= 1
         pick = rn.random()
-        if pick <= .1:
+        if pick <= .2:
             newmoney()
 
     hit_money = pygame.sprite.spritecollide(ship, moneys, True)
     if hit_money:
-        upshop.money += 1
+        ui_screens.money += 1
 
-    if ship.health <= 0:
+    if ship.health == 0:
         expl = Explosion(ship.rect.midbottom, "lg")
+        all_sprite.add(expl)
         ship.kill()
+        ship.health = -5
+
+    if enemies_killed >= level_requirement:
+        level, enemies_killed, level_requirement = next_level()
 
     # Update
     now = pygame.time.get_ticks()
@@ -468,11 +560,10 @@ while running:
     # Draw / render
     screen.blit(background_img,background_rect)
     all_sprite.draw(screen)
-    ui.draw(screen)
+    draw_shield_bar(screen, 20, HEIGHT-50,ship.health,VIOLET)
     drawtext(screen,str(ship.score),16,WIDTH-20,HEIGHT-50,VIOLET)
-    drawtext(screen,str(ship.health),16,20,HEIGHT-50,VIOLET)
     drawtext(screen,str(ship.upgrade),16,20,HEIGHT-80,VIOLET)
-    drawtext(screen,str(upshop.money),16,WIDTH-20,HEIGHT-80,VIOLET)
+    drawtext(screen, str(ui_screens.money), 16, WIDTH - 20, HEIGHT - 80, VIOLET)
     # *after* drawing everything, flip the display
     pygame.display.flip()
 
