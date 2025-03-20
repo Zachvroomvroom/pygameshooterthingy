@@ -23,6 +23,8 @@ enemies_killed = 0
 level = 1
 level_requirement = 20+round((level*2)**1.05)
 
+delay_time = 0
+
 #definitions
 def newmob(typpity):
     enemy = Mob(typpity)
@@ -364,7 +366,7 @@ class Bullet(pg.sprite.Sprite):
 
 class Screens():
     def __init__(self):
-        self.money = 15
+        self.money = 0
         self.selectable = []
         self.selected = 0
         self.go = True
@@ -466,11 +468,35 @@ class Screens():
                 holding = False
             screen.fill(BLACK)
             drawtext(screen, "Pygameshooterthingy", 32, WIDTH // 2, 24, VIOLET)
-            drawtext(screen, "A: left, D: right   Space: shoot", 24, WIDTH // 2, 100, VIOLET)
-            drawtext(screen, "Shift: open shop    Ctrl: close menus ", 24, WIDTH // 2, 130, VIOLET)
-            drawtext(screen, "1: upgrade 1, 2: upgrade 2, 3: regain 1 health", 24, WIDTH // 2, 160, VIOLET)
+            drawtext(screen, "A: left   D: right   Space: shoot", 24, WIDTH // 2, 100, VIOLET)
+            drawtext(screen, "Shift: open shop  Ctrl: close menus  Tab: confirm", 24, WIDTH // 2, 130, VIOLET)
+            drawtext(screen, "1: upgrade 1  2: upgrade 2  3: regain 1 health", 24, WIDTH // 2, 160, VIOLET)
             pygame.display.flip()
 
+    def death(self):
+        global running
+
+        screen.fill(BLACK)
+        holding = True
+        while holding:
+            # keep loop running at the right speed
+            clock.tick(FPS)
+            # Process input (events)
+            for event2 in pygame.event.get():
+                # check for closing window
+                if event2.type == pygame.QUIT:
+                    holding = False
+                    running = False
+            keystate = pg.key.get_pressed()
+            if keystate[pg.K_LCTRL]:
+                holding = False
+            screen.fill(BLACK)
+            drawtext(screen, "You have met your end,", 32, WIDTH // 2, 24, VIOLET)
+            drawtext(screen, "But you can always try again.", 32, WIDTH // 2, 64, VIOLET)
+            drawtext(screen, "You died with a score of " + str(ship.score), 24, WIDTH // 2, 124, VIOLET)
+            drawtext(screen, "And you died on level " + str(level), 24, WIDTH // 2, 152, VIOLET)
+
+            pygame.display.flip()
 
 class Money(pg.sprite.Sprite):
     def __init__(self):
@@ -527,6 +553,8 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+    now = pygame.time.get_ticks()
+
     hit_player = pygame.sprite.spritecollide(ship,enemies,True)
     if hit_player:
         expl = Explosion(ship.rect.midbottom, "sm")
@@ -550,12 +578,18 @@ while running:
         all_sprite.add(expl)
         ship.kill()
         ship.health = -5
+        delay_time = now
+
+    if ship.health <= -1:
+        delay = 2000
+        if now - delay_time > delay:
+            delay_time = now
+            ui_screens.death()
 
     if enemies_killed >= level_requirement:
         level, enemies_killed, level_requirement = next_level()
 
     # Update
-    now = pygame.time.get_ticks()
     all_sprite.update()
     # Draw / render
     screen.blit(background_img,background_rect)
