@@ -498,6 +498,7 @@ class Screens():
 
             pygame.display.flip()
 
+
 class Money(pg.sprite.Sprite):
     def __init__(self):
         pg.sprite.Sprite.__init__(self)
@@ -512,6 +513,7 @@ class Money(pg.sprite.Sprite):
 
     def update(self):
         self.rect.y += self.speedy
+
 
 # initialize pygame and create window
 pygame.init()
@@ -566,7 +568,7 @@ while running:
         for mob in hit_mob:
             mob.health -= 1
         pick = rn.random()
-        if pick <= .2:
+        if pick <= .1:
             newmoney()
 
     hit_money = pygame.sprite.spritecollide(ship, moneys, True)
